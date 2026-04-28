@@ -10,7 +10,7 @@ load_dotenv()
 genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 
 # Create model
-model = genai.GenerativeModel("gemini-1.5-flash")  # stable model
+model = genai.GenerativeModel("gemini-2.5-flash")  # stable model
 
 
 def explain_prediction(row_data, prediction, confidence):
