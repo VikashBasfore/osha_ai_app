@@ -41,7 +41,7 @@ def translate_text(text, lang):
         return text
 
     try:
-        res = model.models.generate_content(
+        res = model.generate_content(
             model="gemini-2.5-flash",
             contents=f"Translate this text to {lang_map[lang]}:\n{text}"
         )
@@ -955,7 +955,7 @@ def show_ask_ai():
 
         for attempt in range(2):
             try:
-                res = model.models.generate_content(
+                res = model.generate_content(
                     model="gemini-2.5-flash",
                     contents=f"""
 You are a workplace safety AI assistant.
