@@ -15,7 +15,12 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-llm = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
+import google.generativeai as genai
+import streamlit as st
+
+genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
+
+model = genai.GenerativeModel("gemini-1.5-flash")
 # ==============================
 # CONFIG
 # ==============================
