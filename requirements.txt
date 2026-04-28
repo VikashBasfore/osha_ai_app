@@ -7,3 +7,4 @@ matplotlib
 joblib
 google-generativeai
 python-dotenv
+reportlab
