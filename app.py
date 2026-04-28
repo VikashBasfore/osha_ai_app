@@ -955,7 +955,7 @@ def show_ask_ai():
 
         for attempt in range(2):
             try:
-                res = llm.models.generate_content(
+                res = model.models.generate_content(
                     model="gemini-2.5-flash",
                     contents=f"""
 You are a workplace safety AI assistant.
