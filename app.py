@@ -20,7 +20,7 @@ import streamlit as st
 
 genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
 
-model = genai.GenerativeModel("gemini-1.5-flash")
+model = genai.GenerativeModel("gemini-2.5-flash")
 # ==============================
 # CONFIG
 # ==============================
@@ -41,7 +41,7 @@ def translate_text(text, lang):
         return text
 
     try:
-        res = llm.models.generate_content(
+        res = model.models.generate_content(
             model="gemini-2.5-flash",
             contents=f"Translate this text to {lang_map[lang]}:\n{text}"
         )
