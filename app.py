@@ -196,7 +196,7 @@ def load_model():
     data = joblib.load("models/final_model.pkl")
     return data["pipeline"], data["model"], data["columns"]
 
-pipeline, model, columns = load_model()
+pipeline, ml_model, columns = load_model()
 
 # ==============================
 # USER SYSTEM
@@ -715,8 +715,8 @@ def predictor():
 
             X = X[columns]
 
-            pred = model.predict(X)[0]
-            prob = model.predict_proba(X).max()
+            pred = ml_model.predict(X)[0]
+            prob = ml_model.predict_proba(X).max()
 
             # ================= LABEL =================
             incident_outcome_map = {
@@ -956,7 +956,7 @@ def show_ask_ai():
         for attempt in range(2):
             try:
                 res = model.generate_content(
-                    model="gemini-2.5-flash",
+                    # model="gemini-2.5-flash",
                     contents=f"""
 You are a workplace safety AI assistant.
 
