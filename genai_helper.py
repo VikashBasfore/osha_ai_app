@@ -6,8 +6,11 @@ import time
 # Load API key
 load_dotenv()
 
-# Initialize Gemini client
-client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
+# Configure Gemini
+genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
+
+# Create model
+model = genai.GenerativeModel("gemini-1.5-flash")  # stable model
 
 
 def explain_prediction(row_data, prediction, confidence):
@@ -52,20 +55,15 @@ def explain_prediction(row_data, prediction, confidence):
         - Keep it structured and readable
         """
 
-        # Retry logic for API overload
+        # Retry logic
         for attempt in range(5):
             try:
-                response = client.models.generate_content(
-                    model="gemini-2.5-flash",
-                    contents=prompt
-                )
-
-                text = response.text
-                return text.strip()
+                response = model.generate_content(prompt)
+                return response.text.strip()
 
             except Exception as e:
                 if "503" in str(e):
-                    time.sleep(5)   # retry after delay
+                    time.sleep(5)
                 elif "429" in str(e):
                     return "🚫 Daily AI limit reached. Please try again tomorrow."
                 else:
