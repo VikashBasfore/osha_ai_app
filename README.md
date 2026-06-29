@@ -379,8 +379,8 @@ Run all cells sequentially.
 # 👥 Contributors
 
 - **Vikash Basfore**
-- Mumtaz Khan
 - Kavya Radheshwar
+- Mumtaz Khan
 - Mangasamudram Lokeswari
 - Divyasree C.
 - R. Haridharan
