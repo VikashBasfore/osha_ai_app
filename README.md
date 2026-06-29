@@ -389,12 +389,17 @@ Run all cells sequentially.
 
 # 🙏 Acknowledgements
 
-- U.S. Occupational Safety and Health Administration (OSHA)
-- Great Learning
-- Scikit-Learn
-- LightGBM
-- XGBoost
-- Open Source Python Community
+This project was successfully completed as part of the **PGP in Data Science with Specialization in Generative AI** Capstone Project.
+
+Special thanks to:
+
+- **Great Learning** for providing mentorship, guidance, and the capstone project framework.
+- **Occupational Safety and Health Administration (OSHA)** for making the Injury Tracking Application (ITA) Case Detail Dataset publicly available.
+- The **Scikit-learn**, **LightGBM**, **XGBoost**, **Pandas**, and **NumPy** open-source communities for developing powerful machine learning and data analysis libraries.
+- My capstone teammates for their collaboration, discussions, and contributions throughout the project.
+- All open-source contributors whose tools and documentation made this project possible.
+
+This project was developed solely for educational and research purposes to demonstrate the practical application of Machine Learning and Natural Language Processing in workplace safety analytics.
 
 ---
 
