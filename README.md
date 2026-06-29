@@ -388,8 +388,7 @@ The complete project presentation explains the business problem, data analysis, 
 
 ## 📚 Additional Project Documents
 
-- 📄 [Final Project Report](./Capstone_Final_Report.pdf)
-- 📄 [Interim Project Report](./Capstone_Interim_Report.pdf)
+- 📄 [Final Project Report](./Capstone_Final_Report.docx)
 - 📓 [Jupyter Notebook](./Final_Capstone_GRP_5_2026.ipynb)
 
 # 👥 Contributors
