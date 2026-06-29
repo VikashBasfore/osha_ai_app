@@ -376,6 +376,22 @@ Run all cells sequentially.
 
 ---
 
+# 📊 Project Presentation
+
+The complete project presentation explains the business problem, data analysis, feature engineering, model development, evaluation, and business recommendations.
+
+📥 **Download Presentation**
+
+➡️ [Capstone Presentation (PPTX)](./capstone_final2.pptx)
+
+---
+
+## 📚 Additional Project Documents
+
+- 📄 [Final Project Report](./Capstone_Final_Report.pdf)
+- 📄 [Interim Project Report](./Capstone_Interim_Report.pdf)
+- 📓 [Jupyter Notebook](./Final_Capstone_GRP_5_2026.ipynb)
+
 # 👥 Contributors
 
 - **Vikash Basfore**
