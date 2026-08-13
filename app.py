@@ -1,17 +1,18 @@
 import streamlit as st
 import pandas as pd
 import joblib
-import json, os
-from datetime import datetime
-from genai_helper import explain_prediction
+import mysql.connector
+import json
+import os
 import re
+from datetime import datetime
 
+from dotenv import load_dotenv
+from genai_helper import explain_prediction
+import google.generativeai as genai
 
 
 # ================= GEMINI SETUP =================
-import google.generativeai as genai
-import os
-from dotenv import load_dotenv
 
 load_dotenv()
 
@@ -20,7 +21,7 @@ import streamlit as st
 
 genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
 
-model = genai.GenerativeModel("gemini-2.5-flash")
+model = genai.GenerativeModel("gemini-1.5-flash")
 # ==============================
 # CONFIG
 # ==============================
@@ -202,7 +203,7 @@ def translate_text(text, lang):
         return text
 
     try:
-        res = model.generate_content(
+        res = llm.models.generate_content(
             model="gemini-2.5-flash",
             contents=f"Translate this text to {lang_map[lang]}:\n{text}"
         )
@@ -1024,11 +1025,24 @@ def predictor():
             }
 
             final_pred = incident_outcome_map.get(int(pred), "Unknown")
+            
+            input_data = df.to_dict(orient="records")[0]
+
+            save_prediction(
+                input_data,
+                final_pred,
+                prob
+            )
+
+            
+            
 
             # 🔥 SAVE STATE (FIX)
+            # ================= SAVE STATE =================
+
             st.session_state.final_pred = final_pred
             st.session_state.prob = prob
-            st.session_state.input_df = df.to_dict(orient="records")[0]
+            st.session_state.input_df = input_data
 
 # ================= SHOW AFTER RERUN =================
     if "final_pred" in st.session_state:
@@ -1320,8 +1334,8 @@ def show_ask_ai():
 
         for attempt in range(2):
             try:
-                res = model.generate_content(
-                    # model="gemini-2.5-flash",
+                res = llm.models.generate_content(
+                    model="gemini-2.5-flash",
                     contents=f"""
 You are a workplace safety AI assistant.
 
@@ -1347,7 +1361,7 @@ ANSWER:
 
                     # ✅ SPLIT INTENT + ANSWER
                     if "ANSWER:" in output:
-                        parts = output.split("ANSWER:")
+                        parts = output.split("ANSWER:", 1)
                         intent = parts[0].replace("INTENT:", "").strip()
                         reply = parts[1].strip()
                     else:
