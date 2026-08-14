@@ -8,3 +8,4 @@ joblib
 google-generativeai
 python-dotenv
 reportlab
+mysql-connector-python

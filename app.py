@@ -16,177 +16,105 @@ import google.generativeai as genai
 
 load_dotenv()
 
-import google.generativeai as genai
-import streamlit as st
+genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 
-genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
+gemini_model = genai.GenerativeModel("gemini-2.5-flash")
 
-model = genai.GenerativeModel("gemini-1.5-flash")
+
+# ================= MYSQL DATABASE CONNECTION =================
+
+def get_db_connection():
+    return mysql.connector.connect(
+        host="localhost",
+        user="root",
+        password="root",
+        database="osha_data_ai"
+    )
+
+
+def save_prediction(data, prediction, confidence):
+
+    connection = get_db_connection()
+    cursor = connection.cursor()
+
+    query = """
+    INSERT INTO prediction_history (
+        date_of_incident,
+        incident_hour,
+        start_hour,
+        company_name,
+        industry_description,
+        company_size,
+        annual_average_employees,
+        total_hours_worked,
+        job_description,
+        soc_description,
+        soc_code,
+        incident_description,
+        before_incident,
+        incident_location,
+        injury_illness,
+        object_substance,
+        dafw_num_away,
+        djtr_num_tr,
+        establishment_type,
+        soc_reviewed,
+        naics_code,
+        naics_year,
+        soc_probability,
+        type_of_incident,
+        time_unknown,
+        prediction,
+        confidence
+    )
+    VALUES (
+        %s, %s, %s, %s, %s, %s, %s, %s, %s,
+        %s, %s, %s, %s, %s, %s, %s, %s, %s,
+        %s, %s, %s, %s, %s, %s, %s, %s, %s
+    )
+    """
+
+    values = (
+        data["date_of_incident"],
+        data["incident_hour"],
+        data["start_hour"],
+        data["company_name"],
+        data["industry_description"],
+        data["size"],
+        data["annual_average_employees"],
+        data["total_hours_worked"],
+        data["job_description"],
+        data["soc_description"],
+        data["soc_code"],
+        data["NEW_INCIDENT_DESCRIPTION"],
+        data["NEW_NAR_BEFORE_INCIDENT"],
+        data["NEW_INCIDENT_LOCATION"],
+        data["NEW_NAR_INJURY_ILLNESS"],
+        data["NEW_NAR_OBJECT_SUBSTANCE"],
+        data["dafw_num_away"],
+        data["djtr_num_tr"],
+        data["establishment_type"],
+        data["soc_reviewed"],
+        data["naics_code"],
+        data["naics_year"],
+        data["soc_probability"],
+        data["type_of_incident"],
+        data["time_unknown"],
+        prediction,
+        confidence
+    )
+
+    cursor.execute(query, values)
+
+    connection.commit()
+
+    cursor.close()
+    connection.close()
+    
 # ==============================
 # CONFIG
 # ==============================
 st.set_page_config(page_title="SafeGuard AI", layout="wide")
-# GLOBAL DARK THEME
-
-st.markdown("""
-<style>
-
-/* ================= MAIN APP ================= */
-.stApp {
-    background-color: #020617 !important;
-    color: white !important;
-}
-
-/* ================= REMOVE WHITE AREAS ================= */
-[data-testid="stAppViewContainer"] {
-    background-color: #020617 !important;
-}
-
-.main {
-    background-color: #020617 !important;
-}
-
-.block-container {
-    background-color: #020617 !important;
-    padding-top: 2rem;
-}
-
-/* ================= HEADER ================= */
-header {
-    background: transparent !important;
-}
-
-/* ================= TEXT ================= */
-h2, h3, h4, h5, h6,
-p, label {
-    color: white !important;
-}
-
-/* ================= INPUT WRAPPER ================= */
-div[data-baseweb="base-input"] {
-    background-color: #0f172a !important;
-    border: 1px solid rgba(255,255,255,0.12) !important;
-    border-radius: 12px !important;
-}
-
-/* ================= INPUT CONTAINER ================= */
-div[data-baseweb="input"] {
-    background-color: #0f172a !important;
-    border-radius: 12px !important;
-}
-
-/* ================= INPUT TEXT ================= */
-div[data-baseweb="input"] input {
-    background-color: #0f172a !important;
-    color: white !important;
-    caret-color: white !important;
-    -webkit-text-fill-color: white !important;
-    box-shadow: 0 0 0px 1000px #0f172a inset !important;
-}
-
-/* ================= TEXTAREA ================= */
-.stTextArea textarea {
-    background-color: #0f172a !important;
-    color: white !important;
-    caret-color: white !important;
-    border-radius: 12px !important;
-    border: 1px solid rgba(255,255,255,0.12) !important;
-}
-
-/* ================= NUMBER INPUT ================= */
-.stNumberInput input {
-    background-color: #0f172a !important;
-    color: white !important;
-    caret-color: white !important;
-    -webkit-text-fill-color: white !important;
-    box-shadow: 0 0 0px 1000px #0f172a inset !important;
-}
-
-/* ================= NUMBER BUTTONS ================= */
-button.step-up,
-button.step-down {
-    background-color: #0f172a !important;
-    color: white !important;
-    border: none !important;
-}
-
-/* ================= PASSWORD ICON ================= */
-div[data-baseweb="input"] svg {
-    fill: white !important;
-}
-
-/* ================= SELECTBOX ================= */
-.stSelectbox div[data-baseweb="select"] > div {
-    background-color: #0f172a !important;
-    color: white !important;
-    border-radius: 12px !important;
-    border: 1px solid rgba(255,255,255,0.12) !important;
-}
-
-/* ================= DROPDOWN MENU ================= */
-div[data-baseweb="popover"] * {
-    background-color: #0f172a !important;
-    color: white !important;
-}
-
-/* ================= PLACEHOLDER ================= */
-input::placeholder,
-textarea::placeholder {
-    color: #9ca3af !important;
-}
-
-/* ================= AUTOFILL FIX ================= */
-input:-webkit-autofill,
-input:-webkit-autofill:hover,
-input:-webkit-autofill:focus,
-textarea:-webkit-autofill {
-    -webkit-text-fill-color: white !important;
-    box-shadow: 0 0 0px 1000px #0f172a inset !important;
-    transition: background-color 5000s ease-in-out 0s;
-}
-
-/* ================= BUTTON ================= */
-.stButton > button {
-    background: linear-gradient(135deg,#2563eb,#1d4ed8) !important;
-    color: white !important;
-    border: none !important;
-    border-radius: 12px !important;
-    padding: 10px 20px !important;
-    font-weight: 600 !important;
-    transition: 0.3s;
-}
-
-.stButton > button:hover {
-    transform: scale(1.03);
-    box-shadow: 0 0 20px rgba(37,99,235,0.5);
-}
-
-/* ================= FORM ================= */
-[data-testid="stForm"] {
-    background: transparent !important;
-}
-
-/* ================= SIDEBAR ================= */
-[data-testid="stSidebar"] {
-    background-color: #111827 !important;
-}
-
-/* ================= SCROLLBAR ================= */
-::-webkit-scrollbar {
-    width: 8px;
-}
-
-::-webkit-scrollbar-thumb {
-    background: #2563eb;
-    border-radius: 10px;
-}
-
-::-webkit-scrollbar-track {
-    background: #020617;
-}
-
-</style>
-""", unsafe_allow_html=True)
 
 if "lang" not in st.session_state:
     st.session_state.lang = "English"
@@ -203,9 +131,8 @@ def translate_text(text, lang):
         return text
 
     try:
-        res = llm.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=f"Translate this text to {lang_map[lang]}:\n{text}"
+        res = model.generate_content(
+            f"Translate this text to {lang_map[lang]}:\n{text}"
         )
 
         return res.text if res and res.text else text
@@ -358,7 +285,7 @@ def load_model():
     data = joblib.load("models/final_model.pkl")
     return data["pipeline"], data["model"], data["columns"]
 
-pipeline, ml_model, columns = load_model()
+pipeline, model, columns = load_model()
 
 # ==============================
 # USER SYSTEM
@@ -388,128 +315,29 @@ if "page" not in st.session_state:
 def login_style():
     st.markdown("""
     <style>
-
-    /* ================= FULL PAGE BACKGROUND ================= */
     .stApp {
-        background:
-        linear-gradient(rgba(0,0,0,0.75), rgba(0,0,0,0.9)),
-        url("https://images.unsplash.com/photo-1503387762-592deb58ef4e");
+    background-image: linear-gradient(rgba(0,0,0,0.75), rgba(0,0,0,0.9)),
+    url("https://images.unsplash.com/photo-1503387762-592deb58ef4e");
+    background-size: cover;
+}
 
-        background-size: cover;
-        background-position: center;
-        background-attachment: fixed;
-    }
-
-    /* ================= REMOVE WHITE AREAS ================= */
-    [data-testid="stAppViewContainer"] {
-        background: transparent !important;
-    }
-
-    .main {
-        background: transparent !important;
-    }
-
-    .block-container {
-        background: transparent !important;
-        padding-top: 2rem;
-    }
-
-    /* ================= LOGIN CARD ================= */
     .card {
         background: rgba(0,0,0,0.85);
-        padding: 40px;
-        border-radius: 20px;
-        box-shadow: 0px 0px 40px rgba(0,0,0,0.6);
-        text-align: center;
-        border: 1px solid rgba(255,255,255,0.08);
-        backdrop-filter: blur(10px);
+        padding:40px;
+        border-radius:20px;
+        box-shadow:0px 0px 40px rgba(0,0,0,0.6);
+        text-align:center;
     }
 
-    /* ================= INPUT WRAPPER ================= */
-    div[data-baseweb="base-input"] {
-        background-color: #0f172a !important;
-        border: 1px solid rgba(255,255,255,0.12) !important;
-        border-radius: 12px !important;
+    .stButton>button {
+        width:100%;
+        background:linear-gradient(135deg,#2563eb,#1d4ed8);
+        color:white;
+        border-radius:10px;
     }
-
-    /* ================= INPUT CONTAINER ================= */
-    div[data-baseweb="input"] {
-        background-color: #0f172a !important;
-        border-radius: 12px !important;
-    }
-
-    /* ================= INPUT FIELD ================= */
-    div[data-baseweb="input"] input {
-        background-color: #0f172a !important;
-        color: white !important;
-        caret-color: white !important;
-        -webkit-text-fill-color: white !important;
-        box-shadow: 0 0 0px 1000px #0f172a inset !important;
-    }
-
-    /* ================= PASSWORD ICON ================= */
-    div[data-baseweb="input"] svg {
-        fill: white !important;
-    }
-
-    /* ================= PLACEHOLDER ================= */
-    input::placeholder {
-        color: #9ca3af !important;
-    }
-
-    /* ================= AUTOFILL FIX ================= */
-    input:-webkit-autofill,
-    input:-webkit-autofill:hover,
-    input:-webkit-autofill:focus {
-        -webkit-text-fill-color: white !important;
-        box-shadow: 0 0 0px 1000px #0f172a inset !important;
-        transition: background-color 5000s ease-in-out 0s;
-    }
-
-    /* ================= LABELS ================= */
-    label {
-        color: white !important;
-        font-weight: 500;
-    }
-
-    /* ================= BUTTON ================= */
-    .stButton > button {
-        width: 100%;
-        background: linear-gradient(135deg,#2563eb,#1d4ed8) !important;
-        color: white !important;
-        border-radius: 12px !important;
-        border: none !important;
-        padding: 12px !important;
-        font-weight: 600 !important;
-        transition: 0.3s;
-    }
-
-    .stButton > button:hover {
-        transform: scale(1.02);
-        box-shadow: 0 0 20px rgba(37,99,235,0.6);
-    }
-
-    /* ================= REMOVE HEADER ================= */
-    header {
-        background: transparent !important;
-    }
-
-    /* ================= SCROLLBAR ================= */
-    ::-webkit-scrollbar {
-        width: 8px;
-    }
-
-    ::-webkit-scrollbar-thumb {
-        background: #2563eb;
-        border-radius: 10px;
-    }
-
-    ::-webkit-scrollbar-track {
-        background: #020617;
-    }
-
     </style>
     """, unsafe_allow_html=True)
+
 # ==============================
 # LOGIN PAGE (CENTERED)
 # ==============================
@@ -813,43 +641,6 @@ def predictor():
         background: rgba(34,197,94,0.15);
         color:#4ade80;
     }
-    
-
-    /* ================= FORM BUTTON ================= */
-    .stFormSubmitButton > button {
-        width: 100% !important;
-        background: linear-gradient(135deg,#2563eb,#1d4ed8) !important;
-        color: white !important;
-        border: none !important;
-        border-radius: 12px !important;
-        padding: 12px !important;
-        font-weight: 600 !important;
-        transition: 0.3s;
-    }
-
-    /* ================= HOVER ================= */
-    .stFormSubmitButton > button:hover {
-        transform: scale(1.02);
-        box-shadow: 0 0 20px rgba(37,99,235,0.6);
-    }
-    /* ================= DOWNLOAD BUTTON ================= */
-    .stDownloadButton > button {
-        width: 100% !important;
-        background: linear-gradient(135deg,#2563eb,#1d4ed8) !important;
-        color: white !important;
-        border: none !important;
-        border-radius: 12px !important;
-        padding: 12px !important;
-        font-weight: 600 !important;
-        transition: 0.3s;
-    }
-
-    /* ================= DOWNLOAD HOVER ================= */
-    .stDownloadButton > button:hover {
-        transform: scale(1.02);
-        box-shadow: 0 0 20px rgba(37,99,235,0.6);
-    }
-
     </style>
     """, unsafe_allow_html=True)
 
@@ -1013,8 +804,8 @@ def predictor():
 
             X = X[columns]
 
-            pred = ml_model.predict(X)[0]
-            prob = ml_model.predict_proba(X).max()
+            pred = model.predict(X)[0]
+            prob = model.predict_proba(X).max()
 
             # ================= LABEL =================
             incident_outcome_map = {
@@ -1044,7 +835,7 @@ def predictor():
             st.session_state.prob = prob
             st.session_state.input_df = input_data
 
-# ================= SHOW AFTER RERUN =================
+        # ================= SHOW AFTER RERUN =================
     if "final_pred" in st.session_state:
 
         final_pred = st.session_state.final_pred
@@ -1053,123 +844,68 @@ def predictor():
         lang = st.session_state.lang
         translated_pred = translate_text(final_pred, lang)
 
-    # ================= COLOR =================
-        risk_colors = {
-            "Death": "#ef4444",
-            "Days Away From Work": "#f59e0b",
-            "Job Transfer / Restriction": "#3b82f6",
-            "Other Recordable Case": "#22c55e"
-        }
+        st.markdown(f"<h2>{translated_pred}</h2>", unsafe_allow_html=True)
 
-        color = risk_colors.get(final_pred, "#22c55e")
+            # ================= COLOR =================
+        if final_pred == "Death":
+            color = "#ef4444"
+        elif final_pred == "Days Away From Work":
+            color = "#f59e0b"
+        else:
+            color = "#22c55e"
 
-    # ================= RESULT BOX =================
+            # ================= BOX 1 =================
         st.markdown(f"""
         <div style="
-        background: linear-gradient(135deg, #111827, #020617);
-        padding:35px;
-        border-radius:20px;
-        border-left:8px solid {color};
-        margin-top:25px;
-        margin-bottom:25px;
-        box-shadow:0 0 30px rgba(0,0,0,0.35);
-        ">
-
-        <h2 style="
-        color:white;
-        margin-bottom:25px;
-        font-size:32px;
-        ">
-        🎯 Prediction Result
-        </h2>
-
-        <div style="
-        background: rgba(255,255,255,0.05);
+        background: linear-gradient(135deg, #1e293b, #020617);
         padding:25px;
         border-radius:15px;
+        border-left:6px solid {color};
         margin-bottom:20px;
         ">
+        <h3 style="color:#e2e8f0;">🎯 Prediction Result</h3>
 
-        <h1 style="
-        color:{color} !important;
-        font-size:42px;
-        margin-bottom:10px;
-        font-weight:700;
-        ">
-        {translated_pred}
-        </h1>
+        <h2 style="color:{color}; margin-top:10px;">
+        {final_pred}
+        </h2>
 
-        <p style="
-        font-size:20px;
-        color:#cbd5e1;
-        margin-top:10px;
-        ">
-        📊 Confidence Score:
-        <span style="
-        color:white;
-        font-weight:700;
-        font-size:24px;
-        ">
-        {prob:.2f}
-        </span>
+        <p style="color:#cbd5f5; font-size:18px;">
+        📊 Confidence Score: <b>{prob:.2f}</b>
         </p>
-
-        </div>
-
         </div>
         """, unsafe_allow_html=True)
 
-    # ================= BUTTON =================
+            # ================= BUTTON =================
         if st.button("🤖 Generate AI Explanation"):
-
             with st.spinner("🤖 AI is analyzing the incident..."):
-
                 st.session_state.explanation = explain_prediction(
                     st.session_state.input_df,
                     final_pred,
                     prob
                 )
 
-    # ================= SHOW AI =================
+        # ================= SHOW AI =================
         if "explanation" in st.session_state and st.session_state.explanation:
 
             explanation = st.session_state.explanation
+            
+
+            lang = st.session_state.lang
+            translated_exp = translate_text(explanation, lang)
+
+            # st.markdown(f"<p>{translated_exp}</p>", unsafe_allow_html=True)
 
             import re
-
             explanation = explanation.replace("###", "")
             explanation = explanation.replace("\n", "<br>")
             explanation = re.sub(r"\*\*(.*?)\*\*", r"<b>\1</b>", explanation)
 
-            explanation = explanation.replace(
-                "1. Root Cause",
-                "<br><b>🔍 Root Cause</b><br>"
-            )
-
-            explanation = explanation.replace(
-                "2. Risk Factors",
-                "<br><b>⚠ Risk Factors</b><br>"
-            )
-
-            explanation = explanation.replace(
-                "3. Chances of Recurrence",
-                "<br><b>🔁 Chances of Recurrence</b><br>"
-            )
-
-            explanation = explanation.replace(
-                "4. Prevention & Solutions",
-                "<br><b>🛠 Prevention & Solutions</b><br>"
-            )
-
-            explanation = explanation.replace(
-                "5. Worker Treatment",
-                "<br><b>🏥 Worker Treatment</b><br>"
-            )
-
-            explanation = explanation.replace(
-                "6. Long-term Safety Measures",
-                "<br><b>📊 Long-term Safety Measures</b><br>"
-            )
+            explanation = explanation.replace("1. Root Cause", "<br><b>🔍 Root Cause</b><br>")
+            explanation = explanation.replace("2. Risk Factors", "<br><b>⚠ Risk Factors</b><br>")
+            explanation = explanation.replace("3. Chances of Recurrence", "<br><b>🔁 Chances of Recurrence</b><br>")
+            explanation = explanation.replace("4. Prevention & Solutions", "<br><b>🛠 Prevention & Solutions</b><br>")
+            explanation = explanation.replace("5. Worker Treatment", "<br><b>🏥 Worker Treatment</b><br>")
+            explanation = explanation.replace("6. Long-term Safety Measures", "<br><b>📊 Long-term Safety Measures</b><br>")
 
             st.markdown(f"""
             <div style="
@@ -1179,57 +915,44 @@ def predictor():
             border:1px solid rgba(255,255,255,0.1);
             margin-top:20px;
             ">
+            <h3 style="color:#e2e8f0;">🤖 AI Safety Explanation</h3>
 
-            <h3 style="color:#e2e8f0;">
-            🤖 AI Safety Explanation
-            </h3>
-
-            <p style="
-            color:#e2e8f0;
-            font-size:16px;
-            line-height:1.7;
-            ">
+            <p style="color:#e2e8f0; font-size:16px; line-height:1.7;">
             {explanation}
             </p>
-    
             </div>
             """, unsafe_allow_html=True)
     
-        # ================= DOWNLOAD BUTTON =================
+    # ================= DOWNLOAD BUTTON =================
         report_text = f"""
-    🛡️ SafeGuard AI - Risk Report
-    
-    ----------------------------------------
-    📊 Prediction Result:
-    {st.session_state.final_pred}
-    
-    📈 Confidence Score:
-    {st.session_state.prob:.2f}
-    
-    ----------------------------------------
-    🤖 AI Safety Explanation:
-    {st.session_state.explanation}
-    
-    ----------------------------------------
-    Generated by SafeGuard AI
-    """
-    
+        🛡️ SafeGuard AI - Risk Report
+
+        ----------------------------------------
+        📊 Prediction Result:
+        {st.session_state.final_pred}
+
+        📈 Confidence Score:
+        {st.session_state.prob:.2f}
+
+        ----------------------------------------
+        🤖 AI Safety Explanation:
+        {st.session_state.explanation}
+
+        ----------------------------------------
+        Generated by SafeGuard AI
+        """
+
         st.download_button(
             label="📥 Download Report",
             data=report_text,
             file_name="safety_report.txt",
             mime="text/plain"
         )
-    
+        
         # ================= PDF DOWNLOAD =================
         explanation = st.session_state.get("explanation", "")
-    
-        pdf_file = create_pdf_report(
-            final_pred,
-            prob,
-            explanation
-        )
-    
+        pdf_file = create_pdf_report(final_pred, prob, explanation)
+
         st.download_button(
             label="📄 Download PDF",
             data=pdf_file,
@@ -1253,7 +976,7 @@ def show_ask_ai():
     # ✅ NEW FIX
     if "clear_input" not in st.session_state:
         st.session_state.clear_input = False
-        
+
     if "explanation" not in st.session_state:
         st.session_state.explanation = ""
 
@@ -1261,7 +984,8 @@ def show_ask_ai():
     <div class="sg-page-hdr">
       <h2>🤖 AI Safety Assistant</h2>
       <p>Ask anything about workplace safety, OSHA regulations, hazard prevention, or incident response</p>
-    </div>""", unsafe_allow_html=True)
+    </div>
+    """, unsafe_allow_html=True)
 
     # ================= SUGGESTIONS =================
     sugg = [
@@ -1272,31 +996,49 @@ def show_ask_ai():
     ]
 
     sc = st.columns(4)
+
     for i, s in enumerate(sugg):
         with sc[i]:
             if st.button(s, key=f"sugg_{i}"):
                 st.session_state.chat_q = s
                 st.rerun()
 
-    st.markdown("<div style='height:16px;'></div>", unsafe_allow_html=True)
+    st.markdown(
+        "<div style='height:16px;'></div>",
+        unsafe_allow_html=True
+    )
 
     # ================= CHAT HISTORY =================
     if st.session_state.messages:
-        st.markdown('<div class="sg-card" style="min-height:200px;">', unsafe_allow_html=True)
+
+        st.markdown(
+            '<div class="sg-card" style="min-height:200px;">',
+            unsafe_allow_html=True
+        )
 
         for msg in st.session_state.messages:
+
             if msg["role"] == "user":
-                st.markdown(f'''
-                <div style="display:flex;justify-content:flex-end;margin-bottom:8px;">
-                    <div class="sg-bubble-u">{msg["content"]}</div>
-                </div>
-                ''', unsafe_allow_html=True)
+
+                st.markdown(
+                    f'''
+                    <div style="display:flex;justify-content:flex-end;margin-bottom:8px;">
+                        <div class="sg-bubble-u">{msg["content"]}</div>
+                    </div>
+                    ''',
+                    unsafe_allow_html=True
+                )
+
             else:
-                st.markdown(f'''
-                <div style="display:flex;justify-content:flex-start;margin-bottom:8px;">
-                    <div class="sg-bubble-a">{msg["content"]}</div>
-                </div>
-                ''', unsafe_allow_html=True)
+
+                st.markdown(
+                    f'''
+                    <div style="display:flex;justify-content:flex-start;margin-bottom:8px;">
+                        <div class="sg-bubble-a">{msg["content"]}</div>
+                    </div>
+                    ''',
+                    unsafe_allow_html=True
+                )
 
         st.markdown('</div>', unsafe_allow_html=True)
 
@@ -1308,6 +1050,7 @@ def show_ask_ai():
     ic, bc = st.columns([5, 1])
 
     with ic:
+
         user_input = st.text_input(
             "",
             placeholder="Ask about safety, OSHA, hazard prevention...",
@@ -1316,99 +1059,264 @@ def show_ask_ai():
         )
 
     with bc:
-        send = st.button("Send →", key="send_ai")
+
+        send = st.button(
+            "Send →",
+            key="send_ai"
+        )
 
     # ================= PROCESS INPUT =================
     if send and st.session_state.chat_q.strip():
 
         pending = st.session_state.chat_q.strip()
 
-        # ✅ Save user message
-        st.session_state.messages.append({"role": "user", "content": pending})
+        # ================= SAVE USER MESSAGE =================
+        st.session_state.messages.append({
+            "role": "user",
+            "content": pending
+        })
 
         import time
 
-        # ===== SINGLE AI CALL (FIXED) =====
+        # ===== SINGLE AI CALL =====
         reply = ""
         intent = "GENERAL_CHAT"
 
         for attempt in range(2):
+
             try:
-                res = llm.models.generate_content(
-                    model="gemini-2.5-flash",
-                    contents=f"""
+
+                # =====================================================
+                # GEMINI CALL
+                # =====================================================
+
+                res = gemini_model.generate_content(
+                    f"""
 You are a workplace safety AI assistant.
 
-1. First identify intent:
-   - RISK_PREDICTION
-   - SAFETY_EXPERT_QA
-   - GENERAL_CHAT
+Answer the user's question using your own words.
 
-2. Then give a clear answer.
+Do not reproduce copyrighted articles, manuals,
+regulations, websites, books, or other source material verbatim.
+
+Provide a concise, original and professional explanation.
+
+First identify the user's intent as exactly one of:
+
+- RISK_PREDICTION
+- SAFETY_EXPERT_QA
+- GENERAL_CHAT
+
+Then provide the answer.
 
 User Query:
 {pending}
 
-Return format:
+Return exactly in this format:
+
 INTENT: <intent>
 ANSWER:
 <your answer>
 """
                 )
 
-                if res and res.text:
-                    output = res.text.strip()
+                # =====================================================
+                # SAFE GEMINI RESPONSE HANDLING
+                # =====================================================
 
-                    # ✅ SPLIT INTENT + ANSWER
-                    if "ANSWER:" in output:
-                        parts = output.split("ANSWER:", 1)
-                        intent = parts[0].replace("INTENT:", "").strip()
-                        reply = parts[1].strip()
+                if res and res.candidates:
+
+                    candidate = res.candidates[0]
+
+                    # -------------------------------------------------
+                    # CHECK WHETHER CONTENT EXISTS
+                    # -------------------------------------------------
+
+                    if candidate.content and candidate.content.parts:
+
+                        output_parts = []
+
+                        for part in candidate.content.parts:
+
+                            if hasattr(part, "text") and part.text:
+
+                                output_parts.append(part.text)
+
+                        output = "".join(output_parts).strip()
+
+                        # -------------------------------------------------
+                        # VALID TEXT RECEIVED
+                        # -------------------------------------------------
+
+                        if output:
+
+                            # ================= SPLIT INTENT + ANSWER =================
+
+                            if "ANSWER:" in output:
+
+                                parts = output.split(
+                                    "ANSWER:",
+                                    1
+                                )
+
+                                intent = (
+                                    parts[0]
+                                    .replace("INTENT:", "")
+                                    .strip()
+                                )
+
+                                reply = parts[1].strip()
+
+                            else:
+
+                                reply = output
+
+                            break
+
+                        else:
+
+                            reply = (
+                                "⚠ Gemini returned an empty response. "
+                                "Please try asking the question again."
+                            )
+
+                            break
+
+                    # -------------------------------------------------
+                    # NO CONTENT / BLOCKED RESPONSE
+                    # -------------------------------------------------
+
                     else:
-                        reply = output
+
+                        finish_reason = getattr(
+                            candidate,
+                            "finish_reason",
+                            None
+                        )
+
+                        # Gemini finish reason 4
+                        if str(finish_reason) == "4":
+
+                            reply = (
+                                "⚠ Gemini could not generate this response "
+                                "because the request was blocked by the "
+                                "model's content/copyright filter. "
+                                "Please rephrase your question."
+                            )
+
+                        else:
+
+                            reply = (
+                                "⚠ Gemini could not generate a response. "
+                                f"Finish reason: {finish_reason}"
+                            )
+
+                        break
+
+                else:
+
+                    reply = (
+                        "⚠ Gemini returned no response. "
+                        "Please try again."
+                    )
 
                     break
+
+            # =========================================================
+            # ERROR HANDLING
+            # =========================================================
 
             except Exception as e:
-                if "429" in str(e):
-                    time.sleep(3)
-                    reply = "⚠ AI is busy (quota reached). Please try again later."
+
+                error_message = str(e)
+
+                # ================= QUOTA =================
+
+                if "429" in error_message:
+
+                    if attempt == 0:
+
+                        time.sleep(3)
+                        continue
+
+                    else:
+
+                        reply = (
+                            "⚠ AI is busy or the API quota has been "
+                            "reached. Please try again later."
+                        )
+
+                        break
+
+                # ================= OTHER ERROR =================
+
                 else:
-                    reply = f"⚠ AI Error: {str(e)}"
+
+                    reply = f"⚠ AI Error: {error_message}"
+
                     break
 
-        # ✅ FINAL FALLBACK
-        if not reply:
-            reply = "⚠ AI is currently unavailable. Please try again later."
-        # ✅ Save AI response
-        st.session_state.messages.append({"role": "assistant", "content": reply})
+        # ================= FINAL FALLBACK =================
 
-        # ✅ SAFE CLEAR (FIX)
+        if not reply:
+
+            reply = (
+                "⚠ AI is currently unavailable. "
+                "Please try again later."
+            )
+
+        # ================= SAVE AI RESPONSE =================
+
+        st.session_state.messages.append({
+            "role": "assistant",
+            "content": reply
+        })
+
+        # ================= SAFE CLEAR =================
+
         st.session_state.clear_input = True
 
         st.rerun()
 
     # ================= CLEAR CHAT =================
+
     if st.session_state.messages:
+
         _, cc = st.columns([6, 1])
+
         with cc:
-            if st.button("Clear chat", key="clr_chat"):
+
+            if st.button(
+                "Clear chat",
+                key="clr_chat"
+            ):
+
                 st.session_state.messages = []
+
                 st.rerun()
 
     st.markdown('</div>', unsafe_allow_html=True)
+
+
 # ==============================
 # ROUTER
 # ==============================
+
 if not st.session_state.logged_in:
+
     if st.session_state.page == "signup":
         signup()
+
     else:
         login()
+
 else:
+
     if st.session_state.page == "home":
         home()
+
     elif st.session_state.page == "predict":
         predictor()
+
     elif st.session_state.page == "chat":
         show_ask_ai()
