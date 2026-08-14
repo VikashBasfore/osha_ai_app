@@ -24,92 +24,171 @@ gemini_model = genai.GenerativeModel("gemini-2.5-flash")
 # ================= MYSQL DATABASE CONNECTION =================
 
 def get_db_connection():
+
+    # =========================================================
+    # STREAMLIT CLOUD
+    # =========================================================
+    # If MYSQL_HOST exists in Streamlit Secrets,
+    # use the cloud MySQL database.
+    if "MYSQL_HOST" in st.secrets:
+
+        return mysql.connector.connect(
+            host=st.secrets["MYSQL_HOST"],
+            user=st.secrets["MYSQL_USER"],
+            password=st.secrets["MYSQL_PASSWORD"],
+            database=st.secrets["MYSQL_DATABASE"],
+            port=int(st.secrets.get("MYSQL_PORT", 3306))
+        )
+
+    # =========================================================
+    # LOCAL COMPUTER
+    # =========================================================
+    # If Streamlit Secrets are not available,
+    # connect to MySQL running on your computer.
     return mysql.connector.connect(
         host="localhost",
         user="root",
         password="root",
-        database="osha_data_ai"
+        database="osha_data_ai",
+        port=3306
     )
 
+
+# ================= SAVE PREDICTION =================
 
 def save_prediction(data, prediction, confidence):
 
-    connection = get_db_connection()
-    cursor = connection.cursor()
+    connection = None
+    cursor = None
 
-    query = """
-    INSERT INTO prediction_history (
-        date_of_incident,
-        incident_hour,
-        start_hour,
-        company_name,
-        industry_description,
-        company_size,
-        annual_average_employees,
-        total_hours_worked,
-        job_description,
-        soc_description,
-        soc_code,
-        incident_description,
-        before_incident,
-        incident_location,
-        injury_illness,
-        object_substance,
-        dafw_num_away,
-        djtr_num_tr,
-        establishment_type,
-        soc_reviewed,
-        naics_code,
-        naics_year,
-        soc_probability,
-        type_of_incident,
-        time_unknown,
-        prediction,
-        confidence
-    )
-    VALUES (
-        %s, %s, %s, %s, %s, %s, %s, %s, %s,
-        %s, %s, %s, %s, %s, %s, %s, %s, %s,
-        %s, %s, %s, %s, %s, %s, %s, %s, %s
-    )
-    """
+    try:
 
-    values = (
-        data["date_of_incident"],
-        data["incident_hour"],
-        data["start_hour"],
-        data["company_name"],
-        data["industry_description"],
-        data["size"],
-        data["annual_average_employees"],
-        data["total_hours_worked"],
-        data["job_description"],
-        data["soc_description"],
-        data["soc_code"],
-        data["NEW_INCIDENT_DESCRIPTION"],
-        data["NEW_NAR_BEFORE_INCIDENT"],
-        data["NEW_INCIDENT_LOCATION"],
-        data["NEW_NAR_INJURY_ILLNESS"],
-        data["NEW_NAR_OBJECT_SUBSTANCE"],
-        data["dafw_num_away"],
-        data["djtr_num_tr"],
-        data["establishment_type"],
-        data["soc_reviewed"],
-        data["naics_code"],
-        data["naics_year"],
-        data["soc_probability"],
-        data["type_of_incident"],
-        data["time_unknown"],
-        prediction,
-        confidence
-    )
+        # Connect to MySQL
+        connection = get_db_connection()
 
-    cursor.execute(query, values)
+        # Create cursor
+        cursor = connection.cursor()
 
-    connection.commit()
+        # =====================================================
+        # INSERT QUERY
+        # =====================================================
 
-    cursor.close()
-    connection.close()
+        query = """
+        INSERT INTO prediction_history (
+            date_of_incident,
+            incident_hour,
+            start_hour,
+            company_name,
+            industry_description,
+            company_size,
+            annual_average_employees,
+            total_hours_worked,
+            job_description,
+            soc_description,
+            soc_code,
+            incident_description,
+            before_incident,
+            incident_location,
+            injury_illness,
+            object_substance,
+            dafw_num_away,
+            djtr_num_tr,
+            establishment_type,
+            soc_reviewed,
+            naics_code,
+            naics_year,
+            soc_probability,
+            type_of_incident,
+            time_unknown,
+            prediction,
+            confidence
+        )
+        VALUES (
+            %s, %s, %s, %s, %s, %s, %s, %s, %s,
+            %s, %s, %s, %s, %s, %s, %s, %s, %s,
+            %s, %s, %s, %s, %s, %s, %s, %s, %s
+        )
+        """
+
+        # =====================================================
+        # VALUES
+        # =====================================================
+
+        values = (
+            data["date_of_incident"],
+            data["incident_hour"],
+            data["start_hour"],
+            data["company_name"],
+            data["industry_description"],
+            data["size"],
+            data["annual_average_employees"],
+            data["total_hours_worked"],
+            data["job_description"],
+            data["soc_description"],
+            data["soc_code"],
+            data["NEW_INCIDENT_DESCRIPTION"],
+            data["NEW_NAR_BEFORE_INCIDENT"],
+            data["NEW_INCIDENT_LOCATION"],
+            data["NEW_NAR_INJURY_ILLNESS"],
+            data["NEW_NAR_OBJECT_SUBSTANCE"],
+            data["dafw_num_away"],
+            data["djtr_num_tr"],
+            data["establishment_type"],
+            data["soc_reviewed"],
+            data["naics_code"],
+            data["naics_year"],
+            data["soc_probability"],
+            data["type_of_incident"],
+            data["time_unknown"],
+            prediction,
+            confidence
+        )
+
+        # =====================================================
+        # EXECUTE INSERT
+        # =====================================================
+
+        cursor.execute(query, values)
+
+        # Save changes
+        connection.commit()
+
+        return True
+
+    except mysql.connector.Error as e:
+
+        # Rollback if something goes wrong
+        if connection:
+            connection.rollback()
+
+        print("MySQL Error:", e)
+
+        return False
+
+    except Exception as e:
+
+        if connection:
+            connection.rollback()
+
+        print("Database Error:", e)
+
+        return False
+
+    finally:
+
+        # =====================================================
+        # CLOSE CURSOR
+        # =====================================================
+
+        if cursor:
+            cursor.close()
+
+        # =====================================================
+        # CLOSE CONNECTION
+        # =====================================================
+
+        if connection:
+            connection.close()
     
 # ==============================
 # CONFIG
@@ -559,14 +638,21 @@ def home():
     # ================= INDUSTRIES =================
     st.markdown("### 🏭 Industries We Serve")
 
-    industries = ["Construction","Manufacturing","Healthcare","Logistics","Energy","Government"]
+    industries = [
+        ("🏗️", "Construction"),
+        ("🏭", "Manufacturing"),
+        ("🏥", "Healthcare"),
+        ("🚚", "Logistics"),
+        ("⚡", "Energy"),
+        ("🏛️", "Government")
+    ]
     cols = st.columns(len(industries))
 
-    for i, ind in enumerate(industries):
+    for i, (icon, ind) in enumerate(industries):
         cols[i].markdown(f"""
-        <div class="glass">
-            🏢<br><b>{ind}</b>
-        </div>
+            <div class="glass">
+                {icon}<br><b>{ind}</b>
+            </div>
         """, unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
