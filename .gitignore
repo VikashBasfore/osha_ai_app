@@ -210,3 +210,6 @@ __marimo__/
 .streamlit/
 test_mysql.py
 myenv/
+
+# Local database test file
+test_mysql_cloud.py
